@@ -26,7 +26,8 @@ namespace ts.formatting {
         RescanGreaterThanToken,
         RescanSlashToken,
         RescanTemplateToken,
-        RescanJsxIdentifier
+        RescanJsxIdentifier,
+        RescanJsxText,
     }
 
     export function getFormattingScanner(sourceFile: SourceFile, startPos: number, endPos: number): FormattingScanner {
@@ -140,6 +141,17 @@ namespace ts.formatting {
             return false;
         }
 
+        function shouldRescanJsxText(node: Node): boolean {
+            //todo: this could be a one-liner
+            if (node) { //TODO: shouldn't node always exist?
+                switch (node.kind) {
+                    case SyntaxKind.JsxText:
+                        return true;
+                }
+            }
+            return false;
+        }
+
         function shouldRescanSlashToken(container: Node): boolean {
             return container.kind === SyntaxKind.RegularExpressionLiteral;
         }
@@ -176,6 +188,8 @@ namespace ts.formatting {
                         ? ScanAction.RescanTemplateToken
                         : shouldRescanJsxIdentifier(n)
                             ? ScanAction.RescanJsxIdentifier
+                            : shouldRescanJsxText(n)
+                            ? ScanAction.RescanJsxText
                             : ScanAction.Scan;
 
             if (lastTokenInfo && expectedScanAction === lastScanAction) {
@@ -214,6 +228,11 @@ namespace ts.formatting {
             else if (expectedScanAction === ScanAction.RescanJsxIdentifier && currentToken === SyntaxKind.Identifier) {
                 currentToken = scanner.scanJsxIdentifier();
                 lastScanAction = ScanAction.RescanJsxIdentifier;
+            }
+            else if (expectedScanAction === ScanAction.RescanJsxText) {
+                //todo: test with jsx interpolation
+                currentToken = scanner.reScanJsxToken();
+                lastScanAction = ScanAction.RescanJsxText;
             }
             else {
                 lastScanAction = ScanAction.Scan;
